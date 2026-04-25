@@ -682,6 +682,18 @@
             document.getElementById('vendorInput').value = vendorName;
             document.getElementById('vendorAutocomplete').classList.remove('show');
             
+            // Show confirmation message
+            const statusBadge = document.getElementById('statusBadge');
+            const originalText = statusBadge.textContent;
+            statusBadge.textContent = `✅ Vendor "${vendorName}" added! (Will save when you add first product)`;
+            statusBadge.style.background = '#d4edda';
+            statusBadge.style.color = '#155724';
+            
+            // Revert message after 4 seconds
+            setTimeout(() => {
+                statusBadge.textContent = originalText;
+            }, 4000);
+            
             console.log('✅ Added vendor:', vendorName);
         }
         
@@ -1032,7 +1044,24 @@
                 });
                 
                 const result = await response.json();
-                console.log('✅ Saved to Google Sheet:', result);
+                
+                if (result.success) {
+                    console.log('✅ Product and Vendor saved to Google Sheet:', product.name, product.vendor);
+                    
+                    // Show confirmation
+                    const statusBadge = document.getElementById('statusBadge');
+                    const originalText = statusBadge.textContent;
+                    statusBadge.textContent = `✅ Saved: "${product.name}" with vendor "${product.vendor}"`;
+                    statusBadge.style.background = '#d4edda';
+                    statusBadge.style.color = '#155724';
+                    
+                    // Revert after 3 seconds
+                    setTimeout(() => {
+                        statusBadge.textContent = originalText;
+                    }, 3000);
+                } else {
+                    console.error('Failed to save:', result);
+                }
                 
             } catch (error) {
                 console.error('Error saving to Google Sheet:', error);
