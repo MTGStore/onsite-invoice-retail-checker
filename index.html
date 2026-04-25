@@ -493,13 +493,7 @@
                     <input type="text" id="invoiceNumber" class="header-input" placeholder="e.g., 47101796007">
                 </div>
             </div>
-            <div class="header-row">
-                <div class="header-field">
-                    <div class="header-label">Invoice Date</div>
-                    <input type="date" id="invoiceDate" class="header-input">
-                </div>
-                <div style="grid-column: 2/4;"></div>
-            </div>
+
             <div style="margin-top: 15px;">
                 <span class="status-badge" id="statusBadge">⏳ Loading...</span>
             </div>
@@ -547,6 +541,28 @@
         
         <div class="card">
             <button class="btn-clear" onclick="clearInvoice()">🗑️ Clear All Items</button>
+        </div>
+    </div>
+
+    <!-- Quick Quantity Modal -->
+    <div class="modal" id="qtyModal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">Enter Quantity</div>
+            <div class="modal-field">
+                <div class="modal-label">Product</div>
+                <div id="qtyProductName" style="padding: 10px; background: #f8f9fa; border-radius: 6px; font-weight: 600; color: #1F4E78;"></div>
+            </div>
+            <div class="modal-field">
+                <div class="modal-label">Quantity (Cases) *</div>
+                <input type="number" id="qtyInput" class="modal-input" value="1" min="1" step="1">
+            </div>
+            <div class="modal-field" style="color: #999; font-size: 13px;">
+                <div id="qtyPreview"></div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeQtyModal()">Cancel</button>
+                <button class="btn-save" onclick="addProductWithQty()">Add to Invoice</button>
+            </div>
         </div>
     </div>
 
@@ -765,16 +781,44 @@
             }
         });
 
+        let selectedProductForQty = null;
+        
         function selectProduct(index) {
             const product = currentSearchResults[index];
-            document.getElementById('searchInput').value = '';
-            document.getElementById('dropdown').classList.remove('show');
+            selectedProductForQty = product;
+            
+            // Show quantity modal
+            document.getElementById('qtyProductName').textContent = product.name + ' (' + product.vendor + ')';
+            document.getElementById('qtyInput').value = '1';
+            document.getElementById('qtyPreview').textContent = product.units + ' units @ $' + product.retail.toFixed(2) + ' = $' + (product.units * product.retail).toFixed(2) + ' per case';
+            document.getElementById('qtyModal').classList.add('show');
+            
+            setTimeout(() => document.getElementById('qtyInput').focus(), 100);
+        }
+        
+        function closeQtyModal() {
+            document.getElementById('qtyModal').classList.remove('show');
+            selectedProductForQty = null;
+        }
+        
+        function addProductWithQty() {
+            if (!selectedProductForQty) return;
+            
+            const qty = parseInt(document.getElementById('qtyInput').value);
+            
+            if (qty < 1) {
+                alert('Please enter a valid quantity');
+                return;
+            }
             
             currentInvoice.push({
-                ...product,
-                qty: 1
+                ...selectedProductForQty,
+                qty: qty
             });
             
+            document.getElementById('searchInput').value = '';
+            document.getElementById('dropdown').classList.remove('show');
+            closeQtyModal();
             updateInvoiceDisplay();
         }
 
@@ -996,18 +1040,22 @@
                 return;
             }
             
+            const itemid = document.getElementById('edit_itemid').value.trim();
+            const units = parseInt(document.getElementById('edit_units').value);
+            const qty = parseInt(document.getElementById('edit_qty').value);
+            
             if (editingIndex === -1) {
-                // New product - save to Google Sheet
+                // NEW PRODUCT - save to Google Sheet
                 const newProduct = {
                     name: name,
                     upc: upc,
-                    itemid: document.getElementById('edit_itemid').value.trim(),
+                    itemid: itemid,
                     vendor: vendor,
                     category: '',
-                    qty: parseInt(document.getElementById('edit_qty').value),
+                    qty: qty,
                     cost: cost,
                     retail: retail,
-                    units: parseInt(document.getElementById('edit_units').value)
+                    units: units
                 };
                 
                 // Save to Google Sheet
@@ -1020,16 +1068,23 @@
                 
                 alert('✅ Product added and saved!');
             } else {
-                // Edit existing
+                // EXISTING PRODUCT - update in invoice AND Google Sheet
                 const product = currentInvoice[editingIndex];
+                
+                // Update in invoice
                 product.name = name;
                 product.upc = upc;
-                product.itemid = document.getElementById('edit_itemid').value.trim();
+                product.itemid = itemid;
                 product.vendor = vendor;
-                product.qty = parseInt(document.getElementById('edit_qty').value);
+                product.qty = qty;
                 product.cost = cost;
                 product.retail = retail;
-                product.units = parseInt(document.getElementById('edit_units').value);
+                product.units = units;
+                
+                // Also update in Google Sheet
+                updateProductInSheet(currentStore, product);
+                
+                alert('✅ Product updated and saved!');
             }
             
             closeEditModal();
@@ -1078,6 +1133,40 @@
                 
             } catch (error) {
                 console.error('Error saving to Google Sheet:', error);
+            }
+        }
+        
+        // Update existing product in Google Sheet
+        async function updateProductInSheet(store, product) {
+            try {
+                const payload = {
+                    action: 'updateProduct',
+                    store: store,
+                    upc: product.upc,
+                    name: product.name,
+                    vendor: product.vendor,
+                    category: product.category || '',
+                    units: product.units,
+                    cost: product.cost,
+                    retail: product.retail,
+                    itemid: product.itemid || ''
+                };
+                
+                const response = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log('✅ Product updated in Google Sheet:', product.name);
+                } else {
+                    console.error('Failed to update:', result);
+                }
+                
+            } catch (error) {
+                console.error('Error updating Google Sheet:', error);
             }
         }
 
