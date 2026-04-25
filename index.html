@@ -481,9 +481,11 @@
                 </div>
                 <div class="header-field">
                     <div class="header-label">Vendor *</div>
-                    <div style="position: relative;">
-                        <input type="text" id="vendorInput" class="header-input" placeholder="Type vendor name...">
-                        <div class="vendor-autocomplete" id="vendorAutocomplete"></div>
+                    <div style="display: flex; gap: 8px;">
+                        <select id="vendorSelect" class="header-select" style="flex: 1;">
+                            <option value="">-- Select Vendor --</option>
+                        </select>
+                        <button onclick="showAddVendorModal()" style="padding: 10px 15px; background: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; white-space: nowrap;">+ Add</button>
                     </div>
                 </div>
                 <div class="header-field">
@@ -548,6 +550,24 @@
         </div>
     </div>
 
+    <!-- Add Vendor Modal -->
+    <div class="modal" id="addVendorModal">
+        <div class="modal-content">
+            <div class="modal-header">Add New Vendor</div>
+            <div class="modal-field">
+                <div class="modal-label">Vendor Name *</div>
+                <input type="text" id="newVendorInput" class="modal-input" placeholder="e.g., Coca-Cola">
+            </div>
+            <div style="color: #999; font-size: 13px; margin-bottom: 20px;">
+                This vendor will be added to <strong id="vendorStoreDisplay">the selected store</strong> and appear in the dropdown.
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeAddVendorModal()">Cancel</button>
+                <button class="btn-save" onclick="saveNewVendor()">Add Vendor</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Edit Modal -->
     <div class="modal" id="editModal">
         <div class="modal-content">
@@ -601,6 +621,16 @@
                     allProducts = products;
                     storeVendors = Array.isArray(vendors) ? vendors : [];
                     
+                    // Populate vendor dropdown
+                    const vendorSelect = document.getElementById('vendorSelect');
+                    vendorSelect.innerHTML = '<option value="">-- Select Vendor --</option>';
+                    storeVendors.forEach(vendor => {
+                        const option = document.createElement('option');
+                        option.value = vendor;
+                        option.textContent = vendor;
+                        vendorSelect.appendChild(option);
+                    });
+                    
                     console.log(`✅ Loaded ${allProducts.length} products and ${storeVendors.length} vendors for ${storeName}`);
                     document.getElementById('statusBadge').textContent = `✅ ${storeName} - ${allProducts.length} products`;
                     
@@ -618,90 +648,64 @@
         }
 
         // ============================================
-        // VENDOR AUTOCOMPLETE
+        // VENDOR DROPDOWN MANAGEMENT
         // ============================================
         
-        // Vendor input autocomplete
-        document.addEventListener('DOMContentLoaded', function() {
-            const vendorInput = document.getElementById('vendorInput');
-            const vendorAutocomplete = document.getElementById('vendorAutocomplete');
+        function showAddVendorModal() {
+            if (!currentStore) {
+                alert('Please select a store first');
+                return;
+            }
             
-            vendorInput.addEventListener('input', function(e) {
-                const searchTerm = e.target.value.trim().toLowerCase();
-                
-                if (!searchTerm) {
-                    vendorAutocomplete.classList.remove('show');
-                    return;
-                }
-                
-                // Find matching vendors
-                const matches = storeVendors.filter(v => v.toLowerCase().includes(searchTerm));
-                
-                let html = '';
-                
-                // Show matching vendors
-                matches.forEach(vendor => {
-                    html += `<div class="vendor-option" onclick="selectVendor('${vendor.replace(/'/g, "\\'")}'); return false;">${vendor}</div>`;
-                });
-                
-                // Show "Add new" option if exact match not found
-                if (!matches.some(v => v.toLowerCase() === searchTerm)) {
-                    html += `<div class="vendor-option new" onclick="addNewVendor('${searchTerm.replace(/'/g, "\\'")}'); return false;">➕ Add new: ${searchTerm}</div>`;
-                }
-                
-                vendorAutocomplete.innerHTML = html;
-                vendorAutocomplete.classList.add('show');
-            });
+            document.getElementById('newVendorInput').value = '';
+            document.getElementById('vendorStoreDisplay').textContent = currentStore;
+            document.getElementById('addVendorModal').classList.add('show');
             
-            // Close autocomplete when clicking outside (but allow clicks on options)
-            document.addEventListener('click', function(e) {
-                if (e.target.id !== 'vendorInput' && !e.target.classList.contains('vendor-option')) {
-                    vendorAutocomplete.classList.remove('show');
-                }
-            });
-            
-            // Prevent closing on vendor option clicks
-            vendorAutocomplete.addEventListener('click', function(e) {
-                e.stopPropagation();
-            });
-        });
-        
-        function selectVendor(vendor) {
-            document.getElementById('vendorInput').value = vendor;
-            document.getElementById('vendorAutocomplete').classList.remove('show');
-            return false;
+            setTimeout(() => document.getElementById('newVendorInput').focus(), 100);
         }
         
-        function addNewVendor(vendor) {
-            const vendorName = vendor.trim();
+        function closeAddVendorModal() {
+            document.getElementById('addVendorModal').classList.remove('show');
+        }
+        
+        function saveNewVendor() {
+            const vendorName = document.getElementById('newVendorInput').value.trim();
+            
+            if (!vendorName) {
+                alert('Please enter a vendor name');
+                return;
+            }
             
             if (storeVendors.includes(vendorName)) {
-                alert('This vendor already exists!');
-                return false;
+                alert('Vendor "' + vendorName + '" already exists in ' + currentStore);
+                return;
             }
             
             // Add vendor to list
             storeVendors.push(vendorName);
             storeVendors.sort();
             
-            // Set the vendor input to the new vendor
-            document.getElementById('vendorInput').value = vendorName;
-            document.getElementById('vendorAutocomplete').classList.remove('show');
+            // Update dropdown
+            const vendorSelect = document.getElementById('vendorSelect');
+            const option = document.createElement('option');
+            option.value = vendorName;
+            option.textContent = vendorName;
+            vendorSelect.appendChild(option);
+            vendorSelect.value = vendorName; // Select it
             
-            // Show confirmation message
+            // Show confirmation
             const statusBadge = document.getElementById('statusBadge');
             const originalText = statusBadge.textContent;
             statusBadge.textContent = `✅ Vendor "${vendorName}" added! (Will save when you add first product)`;
             statusBadge.style.background = '#d4edda';
             statusBadge.style.color = '#155724';
             
-            // Revert message after 4 seconds
             setTimeout(() => {
                 statusBadge.textContent = originalText;
             }, 4000);
             
             console.log('✅ Added vendor:', vendorName);
-            return false;
+            closeAddVendorModal();
         }
         
         // Store selection change
@@ -980,10 +984,15 @@
             const upc = document.getElementById('edit_upc').value.trim();
             const cost = parseFloat(document.getElementById('edit_cost').value);
             const retail = parseFloat(document.getElementById('edit_retail').value);
-            const vendor = document.getElementById('edit_vendor').value.trim();
+            
+            // Get vendor from header dropdown or from modal (if editing)
+            let vendor = document.getElementById('vendorSelect').value.trim();
+            if (!vendor && document.getElementById('edit_vendor')) {
+                vendor = document.getElementById('edit_vendor').value.trim();
+            }
             
             if (!name || !upc || cost <= 0 || retail <= 0 || !vendor) {
-                alert('Please fill in all required fields (*)');
+                alert('Please fill in all required fields (*, select a vendor from dropdown)');
                 return;
             }
             
@@ -1006,11 +1015,8 @@
                 
                 currentInvoice.push(newProduct);
                 
-                // Add vendor if new
-                if (!storeVendors.includes(vendor)) {
-                    storeVendors.push(vendor);
-                    storeVendors.sort();
-                }
+                // Reset vendor dropdown after adding
+                document.getElementById('vendorSelect').value = '';
                 
                 alert('✅ Product added and saved!');
             } else {
