@@ -969,7 +969,7 @@
             }
             
             if (editingIndex === -1) {
-                // New product
+                // New product - save to Google Sheet
                 const newProduct = {
                     name: name,
                     upc: upc,
@@ -982,6 +982,9 @@
                     units: parseInt(document.getElementById('edit_units').value)
                 };
                 
+                // Save to Google Sheet
+                saveProductToSheet(currentStore, newProduct);
+                
                 currentInvoice.push(newProduct);
                 
                 // Add vendor if new
@@ -990,7 +993,7 @@
                     storeVendors.sort();
                 }
                 
-                alert('✅ Product added!');
+                alert('✅ Product added and saved!');
             } else {
                 // Edit existing
                 const product = currentInvoice[editingIndex];
@@ -1006,6 +1009,34 @@
             
             closeEditModal();
             updateInvoiceDisplay();
+        }
+        
+        // Save product to Google Sheet
+        async function saveProductToSheet(store, product) {
+            try {
+                const payload = {
+                    store: store,
+                    upc: product.upc,
+                    name: product.name,
+                    vendor: product.vendor,
+                    category: product.category || '',
+                    units: product.units,
+                    cost: product.cost,
+                    retail: product.retail,
+                    itemid: product.itemid || ''
+                };
+                
+                const response = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                console.log('✅ Saved to Google Sheet:', result);
+                
+            } catch (error) {
+                console.error('Error saving to Google Sheet:', error);
+            }
         }
 
         function clearInvoice() {
