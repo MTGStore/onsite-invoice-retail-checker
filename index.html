@@ -641,29 +641,35 @@
                 
                 // Show matching vendors
                 matches.forEach(vendor => {
-                    html += `<div class="vendor-option" onclick="selectVendor('${vendor}')">${vendor}</div>`;
+                    html += `<div class="vendor-option" onclick="selectVendor('${vendor.replace(/'/g, "\\'")}'); return false;">${vendor}</div>`;
                 });
                 
                 // Show "Add new" option if exact match not found
                 if (!matches.some(v => v.toLowerCase() === searchTerm)) {
-                    html += `<div class="vendor-option new" onclick="addNewVendor('${searchTerm}')">➕ Add new: ${searchTerm}</div>`;
+                    html += `<div class="vendor-option new" onclick="addNewVendor('${searchTerm.replace(/'/g, "\\'")}'); return false;">➕ Add new: ${searchTerm}</div>`;
                 }
                 
                 vendorAutocomplete.innerHTML = html;
                 vendorAutocomplete.classList.add('show');
             });
             
-            // Close autocomplete when clicking outside
+            // Close autocomplete when clicking outside (but allow clicks on options)
             document.addEventListener('click', function(e) {
-                if (e.target.id !== 'vendorInput') {
+                if (e.target.id !== 'vendorInput' && !e.target.classList.contains('vendor-option')) {
                     vendorAutocomplete.classList.remove('show');
                 }
+            });
+            
+            // Prevent closing on vendor option clicks
+            vendorAutocomplete.addEventListener('click', function(e) {
+                e.stopPropagation();
             });
         });
         
         function selectVendor(vendor) {
             document.getElementById('vendorInput').value = vendor;
             document.getElementById('vendorAutocomplete').classList.remove('show');
+            return false;
         }
         
         function addNewVendor(vendor) {
@@ -671,7 +677,7 @@
             
             if (storeVendors.includes(vendorName)) {
                 alert('This vendor already exists!');
-                return;
+                return false;
             }
             
             // Add vendor to list
@@ -695,6 +701,7 @@
             }, 4000);
             
             console.log('✅ Added vendor:', vendorName);
+            return false;
         }
         
         // Store selection change
